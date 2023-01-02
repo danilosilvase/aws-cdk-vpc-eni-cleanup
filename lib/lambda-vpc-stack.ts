@@ -29,9 +29,13 @@ export class LambdaVpcStack extends cdk.Stack {
       // vpcId: "vpc-0337e0f2837b5dce0"
     })
 
+    const securityGroup = new ec2.SecurityGroup(this, 'ENI-SG', {
+      vpc: vpc,
+    })
+
     const fn = new lambda.Function(this, 'MyFunction', {
       runtime: lambda.Runtime.NODEJS_16_X,
-      handler: 'index.handler',
+      handler: 'hello.handler',
       code: lambda.Code.fromAsset(path.join(__dirname, '../lambda-handler')),
       role: myRole, // user-provided role
       vpc: vpc,
@@ -39,10 +43,16 @@ export class LambdaVpcStack extends cdk.Stack {
       vpcSubnets: {
         subnetType: ec2.SubnetType.PUBLIC,
       },
-      allowPublicSubnet: true
+      allowPublicSubnet: true,
+      securityGroups: [securityGroup],
     });
 
+    // const securityGroup = ec2.SecurityGroup.fromSecurityGroupId(this, 'SG', 'sg-12345', {
+    //   mutable: false
+    // });    
+
     const account = new iam.AccountPrincipal('446761287601');
+    // const account = new iam.AccountPrincipal('123456789012');
 
     fn.grantInvoke(account);
 
