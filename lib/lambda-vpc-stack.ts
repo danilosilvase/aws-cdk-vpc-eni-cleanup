@@ -29,9 +29,12 @@ export class LambdaVpcStack extends cdk.Stack {
       // vpcId: "vpc-0337e0f2837b5dce0"
     })
 
-    const securityGroup = new ec2.SecurityGroup(this, 'ENI-SG', {
-      vpc: vpc,
-    })
+    // const securityGroup = new ec2.SecurityGroup(this, 'ENI-SG', {
+    //   vpc: vpc,
+    // })
+    const securityGroup = ec2.SecurityGroup.fromSecurityGroupId(this, 'SG', 'sg-18339745', {
+      mutable: false
+    });    
 
     const fn = new lambda.Function(this, 'MyFunction', {
       runtime: lambda.Runtime.NODEJS_16_X,
@@ -44,12 +47,28 @@ export class LambdaVpcStack extends cdk.Stack {
         subnetType: ec2.SubnetType.PUBLIC,
       },
       allowPublicSubnet: true,
-      securityGroups: [securityGroup],
+      // securityGroups: [securityGroup],
     });
 
-    // const securityGroup = ec2.SecurityGroup.fromSecurityGroupId(this, 'SG', 'sg-12345', {
-    //   mutable: false
-    // });    
+
+// Temporary fix, https://github.com/aws/aws-cdk/issues/6701    
+    const fixVpcDeletion = (handler: lambda.IFunction): void => {
+      handler.connections.securityGroups.forEach(sg => {
+        if (handler.role) {
+          handler.role.node.children.forEach(child => {
+            if (
+              child.node.defaultChild &&
+              (child.node.defaultChild as iam.CfnPolicy).cfnResourceType === 'AWS::IAM::Policy'
+            ) {
+              sg.node.addDependency(child);
+            }
+          });
+        }
+      });
+    };
+    
+    fixVpcDeletion(fn);
+
 
     const account = new iam.AccountPrincipal('446761287601');
     // const account = new iam.AccountPrincipal('123456789012');
